@@ -1,0 +1,10 @@
+com\sangfor\codescan\sonarqube\CodeScanProperties.class
+com\sangfor\codescan\sonarqube\rules\CppTestRulesDefinition.class
+com\sangfor\codescan\sonarqube\scanner\RandomMeasureComputer.class
+com\sangfor\codescan\sonarqube\ui\ExampleRubyWidget.class
+com\sangfor\codescan\sonarqube\CxxLanguage.class
+com\sangfor\codescan\sonarqube\rules\CodeScanProfile.class
+com\sangfor\codescan\sonarqube\scanner\IssueSensor.class
+com\sangfor\codescan\sonarqube\CodeScanMetrics.class
+com\sangfor\codescan\sonarqube\CodeScanPlugin.class
+com\sangfor\codescan\sonarqube\ui\CodeScanFooter.class
