@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javax.xml.stream.XMLStreamException;
 import org.apache.commons.lang.StringUtils;
 import org.jdom.Element;
@@ -19,6 +20,7 @@ import org.jdom.JDOMException;
 import org.jdom.input.SAXBuilder;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.sonar.api.internal.google.common.collect.Maps;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
 
@@ -108,7 +110,7 @@ public class CppTestAnalysisResultsParser {
 //            } else {
 //                CxxUtils.LOG.warn("Skipping invalid violation: '{}'", msg);
 //            }
-                errors.add( new CppTestError( CppTestRulesDefinition.KEY, rule,msg, locFile, Integer.parseInt(ln), arr));
+                errors.add(new CppTestError(CppTestRulesDefinition.KEY, rule, msg, locFile, Integer.parseInt(ln), arr));
             }
         } catch (org.jdom.input.JDOMParseException e) {
             // when RATS fails the XML file might be incomplete
@@ -136,12 +138,28 @@ public class CppTestAnalysisResultsParser {
 
         // as the goal of this example is not to demonstrate how to parse an xml file we return an hard coded list of FooError
         //(final String ruleRepoKey, final String ruleid, final String msg, final String file, final int line,final ArrayList flow) 
-        ArrayList a = new ArrayList();
-        a.add("xxx");
-        CppTestError error1 = new CppTestError("cpptest", "BD-RES-FREE", "这个是一个demo的消息，，用于测试的", "main.cpp", 5, a);
-        CppTestError error2 = new CppTestError("cpptest", "BD-RES-INVFREE", "这个是一个demo的消息，，用于测试的", "filelister.cpp", 9, a);
+        Map<Integer,Map> flows = Maps.newHashMap();
+        Map flow = Maps.newHashMap();
+        flow.put("file", "main.cpp");
+        flow.put("line", "3");
+        flow.put("start", "2");
+        flow.put("end", "5");
+        flow.put("info", "ptr is null ");
+        
+        Map flow1 = Maps.newHashMap();
+        flow1.put("file", "main.cpp");
+        flow1.put("line", "3");
+        flow1.put("start", "1");
+        flow1.put("end", "8");
+        flow1.put("info", "ptr is null ");
+        
+        flows.put(1, flow);
+        flows.put(2, flow1);
+        
+        CppTestError error1 = new CppTestError("cpptest", "BD-RES-FREE", "这个是一个demo的消息，，用于测试的", "main.cpp", 5, flows);
+        CppTestError error2 = new CppTestError("cpptest", "BD-RES-INVFREE", "这个是一个demo的消息，，用于测试的", "filelister.cpp", 9, flows);
         // processReport(file);
-       // return processReport(file);
+        // return processReport(file);
         return Arrays.asList(error1, error2);
     }
 

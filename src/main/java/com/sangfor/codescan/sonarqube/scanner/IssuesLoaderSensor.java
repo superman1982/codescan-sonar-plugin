@@ -116,7 +116,7 @@ public class IssuesLoaderSensor implements Sensor {
         LOGGER.debug("inputFile null ? " + (inputFile == null));
 
         if (inputFile != null) {
-            return saveIssue(inputFile, error.getLine(), error.getRuleid(), error.getMsg(), error.getFlow().toString());
+            return saveIssue(inputFile, error.getLine(), error.getRuleid(), error.getMsg(), error.getFlows().toString());
         } else {
             LOGGER.error("Not able to find a InputFile with " + error.getFile());
             return false;

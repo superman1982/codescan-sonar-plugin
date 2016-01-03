@@ -5,7 +5,7 @@
  */
 package com.sangfor.codescan.cpptest;
 
-import java.util.ArrayList;
+import java.util.Map;
 
 /**
  *
@@ -18,15 +18,15 @@ public class CppTestError {
     private String msg;
     private String file;
     private int line;
-    private ArrayList flow;
+    private Map flows;
 
-    public CppTestError(final String ruleRepoKey, final String ruleid, final String msg, final String file, final int line, final ArrayList flow) {
+    public CppTestError(final String ruleRepoKey, final String ruleid, final String msg, final String file, final int line, final Map flows) {
         this.ruleRepoKey = ruleRepoKey;
         this.ruleid = ruleid;
         this.msg = msg;
         this.file = file;
         this.line = line;
-        this.flow = flow;
+        this.flows = flows;
     }
 
     @Override
@@ -120,14 +120,16 @@ public class CppTestError {
     /**
      * @return the flow
      */
-    public ArrayList getFlow() {
-        return flow;
+    public Map getFlows() {
+        return flows;
     }
 
     /**
      * @param flow the flow to set
      */
-    public void setFlow(ArrayList flow) {
-        this.flow = flow;
+    public void setFlows(Map flows) {
+        this.flows = flows;
     }
 }
+
+
