@@ -9,17 +9,12 @@ import com.sangfor.codescan.sonarqube.rules.CppTestRulesDefinition;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.xml.stream.XMLStreamException;
-import org.apache.commons.lang.StringUtils;
 import org.jdom.Element;
 import org.jdom.JDOMException;
 import org.jdom.input.SAXBuilder;
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.sonar.api.internal.google.common.collect.Maps;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
@@ -28,13 +23,13 @@ public class CppTestAnalysisResultsParser {
 
     private static final Logger LOGGER = Loggers.get(CppTestAnalysisResultsParser.class);
     private HashMap pathMap;
-    private String baseRoot;
+    private final String baseRoot;
 
     public CppTestAnalysisResultsParser(String baseRoot) {
         this.baseRoot = baseRoot;
     }
 
-    public List<CppTestError> processReport(File report) throws JDOMException, IOException, JSONException {
+    public List<CppTestError> processReport(File report) throws JDOMException, IOException {
         LOGGER.info("Parsing 'CppTest' format");
         List<CppTestError> errors = new ArrayList();
         try {
@@ -54,29 +49,23 @@ public class CppTestAnalysisResultsParser {
                     element.addAll(stdviol.getChildren("FlowViol"));
                 }
             }
+            int i = 0;
 //处理具体的issue 信息
             for (Element s : element) {
-                ArrayList arr = new ArrayList();
+
+                Map<Integer, Map> flows = new HashMap();
+
+                //基本信息处理
                 String rule = s.getAttributeValue("rule");
-                String locFile = s.getAttributeValue("locFile");
-                //替换文件路径
-                locFile = convertPath(locFile);
+                String locFile = convertPath(s.getAttributeValue("locFile"));
                 String ln = s.getAttributeValue("ln");
                 String msg = s.getAttributeValue("msg");
+
                 //处理FlowViol 、 DupViol 中的ElDescList
                 if (s.getName().equalsIgnoreCase("FlowViol")) {   //数据流分析细节处理
-                    arr.addAll(dealFlowViol(s));
+                    flows.putAll(dealFlowViol(s));
                 } else if (s.getName().equalsIgnoreCase("DupViol")) {  //重复代码分析细节处理
-                    List<Element> list1 = s.getChildren("ElDescList");
-                    for (Element e1 : list1) {
-                        List<Element> list2 = e1.getChildren("ElDesc");
-                        for (Element e2 : list2) {
-                            JSONObject json = new JSONObject();
-                            json.put("F", convertPath(e2.getAttributeValue("srcRngFile")).replace(baseRoot + "/", ""));
-                            json.put("L", e2.getAttributeValue("ln"));
-                            arr.add(json);
-                        }
-                    }
+                    //没有什么处理
                 } else {
                     //没有什么处理
                 }
@@ -110,7 +99,15 @@ public class CppTestAnalysisResultsParser {
 //            } else {
 //                CxxUtils.LOG.warn("Skipping invalid violation: '{}'", msg);
 //            }
-                errors.add(new CppTestError(CppTestRulesDefinition.KEY, rule, msg, locFile, Integer.parseInt(ln), arr));
+                CppTestError error = new CppTestError();
+                error.setRuleRepoKey(CppTestRulesDefinition.KEY);
+                error.setRuleid(rule);
+                error.setLocFile(locFile);
+                error.setLn(Integer.parseInt(ln));
+                error.setMsg(msg);
+                error.setFlows(flows);
+
+                errors.add(error);
             }
         } catch (org.jdom.input.JDOMParseException e) {
             // when RATS fails the XML file might be incomplete
@@ -133,34 +130,34 @@ public class CppTestAnalysisResultsParser {
         return m;
     }
 
-    public List<CppTestError> parse(final File file) throws XMLStreamException {
+    public List<CppTestError> parse(final File file) throws JDOMException, IOException {
         LOGGER.info("Parsing file {}", file.getAbsolutePath());
-
-        // as the goal of this example is not to demonstrate how to parse an xml file we return an hard coded list of FooError
-        //(final String ruleRepoKey, final String ruleid, final String msg, final String file, final int line,final ArrayList flow) 
-        Map<Integer,Map> flows = Maps.newHashMap();
-        Map flow = Maps.newHashMap();
-        flow.put("file", "main.cpp");
-        flow.put("line", "3");
-        flow.put("start", "2");
-        flow.put("end", "5");
-        flow.put("info", "ptr is null ");
-        
-        Map flow1 = Maps.newHashMap();
-        flow1.put("file", "main.cpp");
-        flow1.put("line", "3");
-        flow1.put("start", "1");
-        flow1.put("end", "8");
-        flow1.put("info", "ptr is null ");
-        
-        flows.put(1, flow);
-        flows.put(2, flow1);
-        
-        CppTestError error1 = new CppTestError("cpptest", "BD-RES-FREE", "这个是一个demo的消息，，用于测试的", "main.cpp", 5, flows);
-        CppTestError error2 = new CppTestError("cpptest", "BD-RES-INVFREE", "这个是一个demo的消息，，用于测试的", "filelister.cpp", 9, flows);
-        // processReport(file);
-        // return processReport(file);
-        return Arrays.asList(error1, error2);
+//
+//        // as the goal of this example is not to demonstrate how to parse an xml file we return an hard coded list of FooError
+//        //(final String ruleRepoKey, final String ruleid, final String msg, final String file, final int line,final ArrayList flow) 
+//        Map<Integer, Map> flows = Maps.newHashMap();
+//        Map flow = Maps.newHashMap();
+//        flow.put("file", "main.cpp");
+//        flow.put("line", "3");
+//        flow.put("start", "2");
+//        flow.put("end", "5");
+//        flow.put("info", "ptr is null ");
+//
+//        Map flow1 = Maps.newHashMap();
+//        flow1.put("file", "main.cpp");
+//        flow1.put("line", "3");
+//        flow1.put("start", "1");
+//        flow1.put("end", "8");
+//        flow1.put("info", "ptr is null ");
+//
+//        flows.put(1, flow);
+//        flows.put(2, flow1);
+//
+//        CppTestError error1 = new CppTestError("cpptest", "BD-RES-FREE", "这个是一个demo的消息，，用于测试的", "main.cpp", 5, flows);
+//        CppTestError error2 = new CppTestError("cpptest", "BD-RES-INVFREE", "这个是一个demo的消息，，用于测试的", "filelister.cpp", 9, flows);
+//        // processReport(file);
+        return processReport(file);
+        // return Arrays.asList(error1, error2);
     }
 
     private String convertPath(String oldPath) {
@@ -173,40 +170,43 @@ public class CppTestAnalysisResultsParser {
         }
     }
 
-    private boolean isInputValid(String suppLoc, String suppLine, String suppRule, String suppMsg) {
-        return !StringUtils.isEmpty(suppRule) && !StringUtils.isEmpty(suppMsg);
-    }
-
     //递归处理ElDescList元素  by cpptest report
-    private ArrayList dealFlowViol(Element e) throws JSONException {
+    private Map dealFlowViol(Element e) {
 
-        ArrayList arr = new ArrayList();
-        HashMap m = new HashMap();
+        Map<Integer, Map> flows = new HashMap();
         List<Element> list1 = e.getChildren("ElDescList");
-        for (Element e1 : list1) {
+        int i = 0;
+
+        for (Element e1 : list1) {//迭代一次，一般
             List<Element> list2 = e1.getChildren("ElDesc");
+
             for (Element e2 : list2) {
-                JSONObject json = new JSONObject();
+                Map flow = new HashMap();
+
                 if (e2.getAttributeValue("desc").equalsIgnoreCase("...")) //排除解析到省略行
                 {
                     continue;                                               // <ElDesc ElType="." desc="..."><Props /></ElDesc>
                 }
                 String file = convertPath(e2.getAttributeValue("srcRngFile")).replace(baseRoot + "/", "");
-                json.put("F", file);
-                json.put("L", e2.getAttributeValue("ln"));
-                json.put("D", e2.getAttributeValue("desc"));
+                String ln = e2.getAttributeValue("ln");
+                String desc = e2.getAttributeValue("desc");
+                
                 if (!e2.getChild("Props").getChildren().isEmpty()) {
-                    json.put("P", " // " + e2.getChild("Props").getChild("Prop").getAttributeValue("key")
-                            + " : " + e2.getChild("Props").getChild("Prop").getAttributeValue("val"));
+                    flow.put("props",
+                            e2.getChild("Props").getChild("Prop").getAttributeValue("key") + " : "
+                            + e2.getChild("Props").getChild("Prop").getAttributeValue("val"));
+                }else{
+                    flow.put("props","请看标红的代码哦，，这里没有讲解信息");
                 }
-                arr.add(json);
+                flow.put("file", file);
+                flow.put("ln", ln);
+                flow.put("desc", desc);
                 if (!e2.getChildren("ElDescList").isEmpty()) {
-                    arr.addAll(dealFlowViol(e2));
+                    flow.put("children", dealFlowViol(e2));
                 }
+                flows.put(++i, flow);
             }
         }
-        // CxxUtils.LOG.info("得到issue的完整路径：" + temp.toString());
-        return arr;
-
+        return flows;
     }
 }

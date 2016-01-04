@@ -1,33 +1,34 @@
 package com.sangfor.codescan.sonarqube.scanner;
 
+import com.google.common.collect.Lists;
 import com.sangfor.codescan.cpptest.CppTestAnalysisResultsParser;
 import com.sangfor.codescan.cpptest.CppTestError;
 import com.sangfor.codescan.sonarqube.CxxLanguage;
-import com.sangfor.codescan.sonarqube.rules.CppTestRulesDefinition;
+import com.sangfor.codescan.utils.CodeScanUtils;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
-
 import javax.xml.stream.XMLStreamException;
-
 import org.apache.commons.lang.StringUtils;
 import org.sonar.api.batch.Sensor;
 import org.sonar.api.batch.SensorContext;
 import org.sonar.api.batch.fs.FileSystem;
 import org.sonar.api.batch.fs.InputFile;
-import org.sonar.api.component.ResourcePerspectives;
 import org.sonar.api.config.Settings;
-import org.sonar.api.issue.Issuable;
-import org.sonar.api.issue.Issue;
 import org.sonar.api.resources.Project;
 import org.sonar.api.rule.RuleKey;
-import org.sonar.api.rules.RuleFinder;
 import org.sonar.api.utils.log.Logger;
 import org.sonar.api.utils.log.Loggers;
-
 import static java.lang.String.format;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
+import org.jdom.JDOMException;
 import org.sonar.api.batch.bootstrap.ProjectReactor;
+import org.sonar.api.batch.sensor.issue.NewIssue;
+import org.sonar.api.batch.sensor.issue.NewIssueLocation;
 
 /**
  * The goal of this Sensor is to load the results of an analysis performed by a
@@ -39,23 +40,20 @@ public class IssuesLoaderSensor implements Sensor {
 
     private static final Logger LOGGER = Loggers.get(IssuesLoaderSensor.class);
 
-    protected static final String REPORT_PATH_KEY = "sonar.codescan.cpptest.reportPath";
+    protected static final String REPORT_PATH_KEY = "sonar.codescan.cpptest.reportpath";
 
     protected final Settings settings;
     protected final FileSystem fileSystem;
-    protected final RuleFinder ruleFinder;
-    protected final ResourcePerspectives perspectives;
-    protected final  ProjectReactor reactor;
+    protected final ProjectReactor reactor;
+    private Set<String> notFoundFiles = new HashSet<String>();
 
     /**
      * Use of IoC to get Settings, FileSystem, RuleFinder and
      * ResourcePerspectives
      */
-    public IssuesLoaderSensor(final Settings settings, final FileSystem fileSystem, final RuleFinder ruleFinder, final ResourcePerspectives perspectives, ProjectReactor reactor) {
+    public IssuesLoaderSensor(final Settings settings, final FileSystem fileSystem, ProjectReactor reactor) {
         this.settings = settings;
         this.fileSystem = fileSystem;
-        this.ruleFinder = ruleFinder;
-        this.perspectives = perspectives;
         this.reactor = reactor;
     }
 
@@ -83,73 +81,88 @@ public class IssuesLoaderSensor implements Sensor {
         String reportPath = getReportPath();
         File analysisResultsFile = new File(reportPath);
         try {
-            parseAndSaveResults(analysisResultsFile);
+            parseAndSaveResults(context, analysisResultsFile);
 
         } catch (XMLStreamException e) {
             throw new IllegalStateException("Unable to parse the provided Report file(report.xml)", e);
         } catch (IOException ex) {
             java.util.logging.Logger.getLogger(IssuesLoaderSensor.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (JDOMException ex) {
+            java.util.logging.Logger.getLogger(IssuesLoaderSensor.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
-    protected void parseAndSaveResults(final File file) throws XMLStreamException, IOException {
+    protected void parseAndSaveResults(SensorContext context, final File file) throws XMLStreamException, IOException, JDOMException {
         LOGGER.info("Parsing 'CppTest Report' Analysis Results");
         CppTestAnalysisResultsParser parser = new CppTestAnalysisResultsParser(reactor.getRoot().getBaseDir().getCanonicalPath());
         List<CppTestError> errors = parser.parse(file);
         int i = 0;
         for (CppTestError error : errors) {
-            if (getResourceAndSaveIssue(error)) {
+            if (saveViolation(context, error)) { // if (getResourceAndSaveIssue(error)) {
                 i++;
             }
         }
         LOGGER.info("Total:{}     Add Success: {}", errors.size(), i);
     }
 
-    private boolean getResourceAndSaveIssue(CppTestError error) {
-        LOGGER.debug(error.toString());
-
-        InputFile inputFile = fileSystem.inputFile(
-                fileSystem.predicates().and(
-                        fileSystem.predicates().hasRelativePath(error.getFile()),
-                        fileSystem.predicates().hasType(InputFile.Type.MAIN)));
-
-        LOGGER.debug("inputFile null ? " + (inputFile == null));
-
-        if (inputFile != null) {
-            return saveIssue(inputFile, error.getLine(), error.getRuleid(), error.getMsg(), error.getFlows().toString());
-        } else {
-            LOGGER.error("Not able to find a InputFile with " + error.getFile());
-            return false;
+    private boolean saveViolation(SensorContext context, CppTestError error) {
+        // handles file="" situation -- file level
+        if ((error.getLocFile() != null) && (error.getLocFile().length() > 0)) {
+            String root = reactor.getRoot().getBaseDir().getAbsolutePath();
+            String normalPath = CodeScanUtils.normalizePathFull(error.getLocFile(), root);
+            if (normalPath != null && !notFoundFiles.contains(normalPath)) {
+                InputFile inputFile = fileSystem.inputFile(fileSystem.predicates().is(new File(normalPath)));
+                if (inputFile != null) {
+                    return createIssue(context.newIssue(), inputFile, error);
+                } else {
+                    CodeScanUtils.LOG.warn("Cannot find the file '{}', skipping violations", normalPath);
+                    notFoundFiles.add(normalPath);
+                }
+            }
+        } else { // project level
+            //issuable = perspectives.as(Issuable.class, (Resource) project);
         }
+        return false;
     }
 
-    private boolean saveIssue(InputFile inputFile, int line, String externalRuleKey, String message, String flow) {
-        RuleKey rule = RuleKey.of(CppTestRulesDefinition.KEY, externalRuleKey);
+    private boolean createIssue(NewIssue newIssue, InputFile inputFile, CppTestError error) {
 
-        Issuable issuable = perspectives.as(Issuable.class, inputFile);
-        boolean result = false;
-        if (issuable != null) {
-            LOGGER.debug("Issuable is not null: %s", issuable.toString());
-            Issuable.IssueBuilder issueBuilder = issuable.newIssueBuilder()
-                    .ruleKey(rule)
-                    .message(message);
-            if (line > 0) {
-                LOGGER.debug("line is > 0");
-                issueBuilder = issueBuilder.line(line);
-            }
-            Issue issue = issueBuilder.build();
-            LOGGER.debug("issue == null? " + (issue == null));
-            try {
-                result = issuable.addIssue(issue);
-                LOGGER.debug("after addIssue: result={}", result);
-            } catch (org.sonar.api.utils.MessageException me) {
-                LOGGER.error(format("Can't add issue on file %s at line %d.", inputFile.absolutePath(), line), me);
-            }
+        newIssue.forRule(RuleKey.of(error.getRuleRepoKey(), error.getRuleid()));
+        NewIssueLocation primaryLocation = newIssue.newLocation()
+                .on(inputFile)
+                .message(error.getMsg())
+                .at(inputFile.newRange(error.getLn(),
+                                        0,
+                                        error.getLn(),
+                                        0)
+                    );
+        newIssue.at(primaryLocation);
 
-        } else {
-            LOGGER.debug("Can't find an Issuable corresponding to InputFile:" + inputFile.absolutePath());
+        Map flows = error.getFlows();
+        List<NewIssueLocation> flowLocations = Lists.newArrayList();
+        List<Integer> flowNums = Lists.newArrayList(flows.keySet());
+         Collections.sort(flowNums);
+        for (Integer flowNum : flowNums) {
+            Map flow = (Map) flows.get(flowNum);
+            int line = Integer.parseInt(flow.get("ln").toString());
+            NewIssueLocation newLocation = newIssue.newLocation()
+                    .on(inputFile)
+                    .at(inputFile.newRange(line,0, line,0))
+                    .message(flow.get("props").toString());
+            flowLocations.add(newLocation);
         }
-        return result;
+        if (flowLocations.size() == 1) {
+            newIssue.addLocation(flowLocations.get(0));
+        } else {
+            newIssue.addFlow(flowLocations);
+        }
+        try {
+            newIssue.save();
+        } catch (org.sonar.api.utils.MessageException me) {
+            LOGGER.error(format("Can't add issue on file %s at line %d.", error.getLocFile(), error.getLn()), me);
+            return false;
+        }
+        return true;
     }
 
     @Override

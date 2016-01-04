@@ -1,11 +1,9 @@
 package com.sangfor.codescan.sonarqube;
 
 import com.sangfor.codescan.sonarqube.scanner.IssuesLoaderSensor;
-import com.sangfor.codescan.sonarqube.scanner.IssueSensor;
 import com.sangfor.codescan.sonarqube.scanner.RandomMeasureComputer;
 import com.sangfor.codescan.sonarqube.rules.CodeScanProfile;
 import com.sangfor.codescan.sonarqube.rules.CppTestRulesDefinition;
-import com.sangfor.codescan.sonarqube.scanner.MultilineIssuesSensor;
 import com.sangfor.codescan.sonarqube.ui.CodeScanFooter;
 import com.sangfor.codescan.sonarqube.ui.ExampleRubyWidget;
 import java.util.ArrayList;
@@ -33,7 +31,7 @@ public final class CodeScanPlugin extends SonarPlugin {
     extensions.addAll(asList(CppTestRulesDefinition.class, CodeScanProfile.class));
 
     // Scanner
-    extensions.addAll(asList(RandomMeasureComputer.class, MultilineIssuesSensor.class, IssueSensor.class, IssuesLoaderSensor.class));
+    extensions.addAll(asList(RandomMeasureComputer.class, IssuesLoaderSensor.class));
 
     // UI
     extensions.addAll(asList(CodeScanFooter.class, ExampleRubyWidget.class));

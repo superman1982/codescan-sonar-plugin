@@ -16,16 +16,26 @@ public class CppTestError {
     private String ruleRepoKey;
     private String ruleid;
     private String msg;
-    private String file;
-    private int line;
+    private String locFile;
+    private int ln;
+    private int locStartln;
+    private int locStartPos;
+    private int locEndLn;
+    private int locEndPos;
+    
     private Map flows;
+    
 
-    public CppTestError(final String ruleRepoKey, final String ruleid, final String msg, final String file, final int line, final Map flows) {
+    public CppTestError() {
+
+    }
+
+    public CppTestError(final String ruleRepoKey, final String ruleid, final String msg, final String locFile, final int ln, final Map flows) {
         this.ruleRepoKey = ruleRepoKey;
         this.ruleid = ruleid;
         this.msg = msg;
-        this.file = file;
-        this.line = line;
+        this.locFile = locFile;
+        this.ln = ln;
         this.flows = flows;
     }
 
@@ -38,12 +48,12 @@ public class CppTestError {
         s.append("|");
         s.append(getMsg());
         s.append("|");
-        s.append(getFile());
+        s.append(getLocFile());
         s.append("(");
-        s.append(getLine());
+        s.append(getLn());
         s.append(")");
         s.append("|");
-      //  s.append(getFlow().size());
+        //  s.append(getFlow().size());
         return s.toString();
     }
 
@@ -90,34 +100,6 @@ public class CppTestError {
     }
 
     /**
-     * @return the file
-     */
-    public String getFile() {
-        return file;
-    }
-
-    /**
-     * @param file the file to set
-     */
-    public void setFile(String file) {
-        this.file = file;
-    }
-
-    /**
-     * @return the line
-     */
-    public int getLine() {
-        return line;
-    }
-
-    /**
-     * @param line the line to set
-     */
-    public void setLine(int line) {
-        this.line = line;
-    }
-
-    /**
      * @return the flow
      */
     public Map getFlows() {
@@ -125,11 +107,93 @@ public class CppTestError {
     }
 
     /**
-     * @param flow the flow to set
+     * @param flows
      */
     public void setFlows(Map flows) {
         this.flows = flows;
     }
+
+    /**
+     * @return the locFile
+     */
+    public String getLocFile() {
+        return locFile;
+    }
+
+    /**
+     * @param locFile the locFile to set
+     */
+    public void setLocFile(String locFile) {
+        this.locFile = locFile;
+    }
+
+    /**
+     * @return the ln
+     */
+    public int getLn() {
+        return ln;
+    }
+
+    /**
+     * @param ln the ln to set
+     */
+    public void setLn(int ln) {
+        this.ln = ln;
+    }
+
+    /**
+     * @return the locStartln
+     */
+    public int getLocStartln() {
+        return locStartln;
+    }
+
+    /**
+     * @param locStartln the locStartln to set
+     */
+    public void setLocStartln(int locStartln) {
+        this.locStartln = locStartln;
+    }
+
+    /**
+     * @return the locStartPos
+     */
+    public int getLocStartPos() {
+        return locStartPos;
+    }
+
+    /**
+     * @param locStartPos the locStartPos to set
+     */
+    public void setLocStartPos(int locStartPos) {
+        this.locStartPos = locStartPos;
+    }
+
+    /**
+     * @return the locEndLn
+     */
+    public int getLocEndLn() {
+        return locEndLn;
+    }
+
+    /**
+     * @param locEndLn the locEndLn to set
+     */
+    public void setLocEndLn(int locEndLn) {
+        this.locEndLn = locEndLn;
+    }
+
+    /**
+     * @return the locEndPos
+     */
+    public int getLocEndPos() {
+        return locEndPos;
+    }
+
+    /**
+     * @param locEndPos the locEndPos to set
+     */
+    public void setLocEndPos(int locEndPos) {
+        this.locEndPos = locEndPos;
+    }
 }
-
-
